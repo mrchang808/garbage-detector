@@ -1,9 +1,14 @@
 #root {
-  max-width: 1280px;
+  /* optional max-width, etc. */
   margin: 0 auto;
-  padding: 2rem;
   text-align: center;
+
+  /* This is the space under the fixed navbar. Adjust up or down. */
+
+  /* If you had other padding, just add them up:
+     e.g., padding: 3.5rem 1rem 1rem; */
 }
+
 
 .logo {
   height: 6em;
