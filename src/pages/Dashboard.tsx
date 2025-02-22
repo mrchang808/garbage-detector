@@ -2,10 +2,10 @@ import React from 'react';
 
 const Dashboard = () => {
   const sampleData = [
-    { className: 'Plastic', count: 15 },
-    { className: 'Glass', count: 5 },
-    { className: 'Metal', count: 10 },
-    { className: 'Paper', count: 8 },
+    { className: 'Plastic', count: 'soon to be implemented' },
+    { className: 'Glass', count: 'soon to be implemented' },
+    { className: 'Metal', count: 'soon to be implemented' },
+    { className: 'Paper', count: 'soon to be implemented' },
   ];
 
   return (
