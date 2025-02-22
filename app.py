@@ -67,7 +67,7 @@ def generate_frames():
                 cls_id = int(det.cls.item())
                 class_name = model.names.get(cls_id, f"cls_{cls_id}")
 
-                if conf >= 0.7:  # Confidence threshold
+                if conf >= 0.83:  # Confidence threshold
                     xmin, ymin, xmax, ymax = map(int, xyxy)
                     
                     # Map class names to colors (BGR format)

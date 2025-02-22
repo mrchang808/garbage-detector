@@ -1,5 +1,3 @@
-import React from 'react';
-
 const Dashboard = () => {
   const sampleData = [
     { className: 'Plastic', count: 'soon to be implemented' },
