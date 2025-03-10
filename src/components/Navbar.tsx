@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './Navbar.css'; // We'll define this next
+import NotificationsPanel from './NotificationsPanel'; // Import NotificationsPanel
 
 const Navbar = () => {
   return (
@@ -15,6 +16,9 @@ const Navbar = () => {
         </li>
         <li>
           <Link to="/dashboard">Dashboard</Link>
+        </li>
+        <li>
+          <Link to="/reports">Reports</Link>
         </li>
         <li>
           <Link to="/about">About</Link>

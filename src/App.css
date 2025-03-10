@@ -9,6 +9,10 @@
      e.g., padding: 3.5rem 1rem 1rem; */
 }
 
+main {
+  margin-top: 10px; /* Adjust to your Navbar’s height */
+  margin-right: 320px; /* Reserve space for the side panel */
+}
 
 .logo {
   height: 6em;
@@ -44,4 +48,19 @@
 
 .read-the-docs {
   color: #888;
+}
+
+.custom-button {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease-in-out;
+  margin-right: 10px;
+}
+
+.custom-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }

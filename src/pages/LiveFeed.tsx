@@ -1,8 +1,10 @@
+// LiveFeed.tsx
 import { useState } from 'react';
 import GarbageDetector from '../components/garbagedetector';
+import LiveCameraFeed from '../components/LiveCameraFeed';
 
 const LiveFeed = () => {
-  const [isLive, setIsLive] = useState(false); // Toggle state for live stream
+  const [isLive, setIsLive] = useState(false);
 
   return (
     <div style={{
@@ -16,33 +18,12 @@ const LiveFeed = () => {
       <p style={{ fontSize: '18px', marginBottom: '20px' }}>
         Upload an image or enable real-time detection from the camera.
       </p>
-
-      {/* Toggle Buttons */}
       <div style={{ marginBottom: '20px' }}>
-        <button 
-          onClick={() => setIsLive(false)} 
-          style={{ marginRight: '10px', padding: '10px', cursor: 'pointer', color: 'white' }}
-        >
-          Upload Image
-        </button>
-        <button 
-          onClick={() => setIsLive(true)} 
-          style={{ padding: '10px', cursor: 'pointer', color: 'white' }}
-        >
-          Live Camera Feed
-        </button>
-      </div>
+        <button onClick={() => setIsLive(false)} className="custom-button">Upload Image</button>
+        <button onClick={() => setIsLive(true)} className="custom-button">Live Camera Feed</button>
 
-      {/* Render the appropriate component based on the toggle */}
-      {!isLive ? (
-        <GarbageDetector />
-      ) : (
-        <img 
-          src="http://127.0.0.1:5000/stream" 
-          alt="Live Detection Feed" 
-          style={{ width: '100%', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }} 
-        />
-      )}
+      </div>
+      {isLive ? <LiveCameraFeed key="live-camera" /> : <GarbageDetector key="detector" />}
     </div>
   );
 };

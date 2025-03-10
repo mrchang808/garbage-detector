@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface Detection {
   className: string;
@@ -12,127 +12,143 @@ interface Detection {
 }
 
 interface ImageResult {
-  id: string;        // A unique key for React
-  imageURL: string;  // The local URL for preview
+  id: string;
+  file: File;         // keep the file so we can re-measure if needed
   detections: Detection[];
 }
 
 function GarbageDetector() {
+  // Generate a session ID only once per session.
+  const [sessionId] = useState(() => crypto.randomUUID());
+
   const [imageResults, setImageResults] = useState<ImageResult[]>([]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
+    if (!event.target.files) return;
     const newResults: ImageResult[] = [];
 
-    for (const file of Array.from(files)) {
-      const resultId = crypto.randomUUID();
-      const localURL = URL.createObjectURL(file);
+    for (const file of Array.from(event.target.files)) {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('sessionId', sessionId); // send the sessionId with the file
 
-      try {
-        const response = await fetch('http://127.0.0.1:5000/detect', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await response.json();
+      // Send file to the backend
+      const response = await fetch('http://127.0.0.1:5000/detect', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
 
-        newResults.push({
-          id: resultId,
-          imageURL: localURL,
-          detections: data.detections || [],
-        });
-      } catch (error) {
-        console.error(error);
-        newResults.push({
-          id: resultId,
-          imageURL: localURL,
-          detections: [],
-        });
-      }
+      // Store the results plus the original file
+      newResults.push({
+        id: crypto.randomUUID(),
+        file,
+        detections: data.detections || [],
+      });
     }
 
     setImageResults((prev) => [...prev, ...newResults]);
   };
 
-  const containerStyle: React.CSSProperties = {
-    maxWidth: '800px',
-    margin: '0 auto',
-    padding: '20px',
-    backgroundColor: '#1e1e1e',
-    borderRadius: '8px',
-  };
+  return (
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: 20 }}>
+      <h2>Garbage Detector</h2>
+      <p style={{ fontSize: '16px', marginBottom: '10px', color: '#ccc' }}>
+        Your session ID: <strong>{sessionId}</strong>
+      </p>
+      <input type="file" multiple onChange={handleFileChange} />
 
-  const tableStyle: React.CSSProperties = {
-    marginTop: '20px',
-    width: '100%',
-    color: 'white',
-    borderCollapse: 'collapse',
-  };
+      {imageResults.map((result) => (
+        <ImageWithDetections key={result.id} result={result} />
+      ))}
+    </div>
+  );
+}
 
-  const thTdStyle: React.CSSProperties = {
-    border: '1px solid gray',
-    padding: '5px',
+// Separate component to handle drawing on canvas
+function ImageWithDetections({ result }: { result: ImageResult }) {
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const [objectURL, setObjectURL] = useState('');
+  
+  // Create an object URL for the file so we can display it
+  useEffect(() => {
+    const url = URL.createObjectURL(result.file);
+    setObjectURL(url);
+    return () => URL.revokeObjectURL(url);
+  }, [result.file]);
+
+  // Once the image has loaded, draw bounding boxes on the canvas
+  const handleImageLoad = () => {
+    if (!imgRef.current || !canvasRef.current) return;
+
+    const imgEl = imgRef.current;
+    const canvasEl = canvasRef.current;
+
+    // Match canvas size to displayed image size
+    canvasEl.width = imgEl.width;
+    canvasEl.height = imgEl.height;
+
+    const ctx = canvasEl.getContext('2d');
+    if (!ctx) return;
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+    // Calculate scaling factors if the image is displayed at a different size
+    // than its natural (original) size.
+    const scaleX = imgEl.width / imgEl.naturalWidth;
+    const scaleY = imgEl.height / imgEl.naturalHeight;
+
+    // Draw each detection
+    result.detections.forEach((det) => {
+      const { xmin, ymin, xmax, ymax } = det.boundingBox;
+      // Scale bounding box if necessary
+      const x = xmin * scaleX;
+      const y = ymin * scaleY;
+      const w = (xmax - xmin) * scaleX;
+      const h = (ymax - ymin) * scaleY;
+
+      // Draw the rectangle
+      ctx.strokeStyle = 'lime';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+
+      // Draw label background
+      const label = `${det.className}: ${(det.confidence * 100).toFixed(1)}%`;
+      ctx.font = '16px Arial';
+      const textWidth = ctx.measureText(label).width;
+      const textHeight = 16; // approximate
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+      ctx.fillRect(x, y - textHeight, textWidth + 6, textHeight);
+
+      // Draw label text
+      ctx.fillStyle = 'black';
+      ctx.fillText(label, x + 3, y - 3);
+    });
   };
 
   return (
-    <div style={containerStyle}>
-      <h2 style={{ textAlign: 'center', color: 'white' }}>Garbage Detector</h2>
-
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <input 
-          type="file" 
-          multiple 
-          onChange={handleFileChange} 
-          style={{ padding: '10px', borderRadius: '4px' }} 
-        />
-      </div>
-
-      {imageResults.map((result) => (
-        <div key={result.id} style={{ marginTop: '30px', textAlign: 'center' }}>
-          <img 
-            src={result.imageURL} 
-            alt="Uploaded" 
-            style={{ 
-              maxWidth: '100%', 
-              height: 'auto', 
-              borderRadius: '8px', 
-              boxShadow: '0 2px 8px rgba(0,0,0,0.5)' 
-            }} 
-          />
-
-          {result.detections.length > 0 ? (
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thTdStyle}>Class</th>
-                  <th style={thTdStyle}>Confidence</th>
-                  <th style={thTdStyle}>xmin</th>
-                  <th style={thTdStyle}>ymin</th>
-                  <th style={thTdStyle}>xmax</th>
-                  <th style={thTdStyle}>ymax</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.detections.map((det, idx) => (
-                  <tr key={idx}>
-                    <td style={thTdStyle}>{det.className}</td>
-                    <td style={thTdStyle}>{(det.confidence * 100).toFixed(2)}%</td>
-                    <td style={thTdStyle}>{det.boundingBox.xmin}</td>
-                    <td style={thTdStyle}>{det.boundingBox.ymin}</td>
-                    <td style={thTdStyle}>{det.boundingBox.xmax}</td>
-                    <td style={thTdStyle}>{det.boundingBox.ymax}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p style={{ color: 'lightgray', marginTop: '10px' }}>No detections found.</p>
-          )}
-        </div>
-      ))}
+    <div style={{ position: 'relative', marginTop: 20 }}>
+      <img
+        ref={imgRef}
+        src={objectURL}
+        alt="uploaded"
+        style={{ maxWidth: '100%', display: 'block' }}
+        onLoad={handleImageLoad}
+      />
+      {/* Canvas is positioned over the image */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          pointerEvents: 'none',
+          maxWidth: '100%',    // match the img's style
+        }}
+      />
     </div>
   );
 }
