@@ -224,3 +224,50 @@ th {
 tbody tr:nth-child(even) {
   background-color: rgba(255,255,255,0.05);
 }
+
+.cropped-detections-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+}
+
+.cropped-detection-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  width: 140px;
+}
+
+.cropped-image {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.cropped-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.delete-button {
+  background-color: red;
+  color: white;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.delete-button:hover {
+  background-color: darkred;
+}

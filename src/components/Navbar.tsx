@@ -1,7 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import './Navbar.css'; // We'll define this next
-import NotificationsPanel from './NotificationsPanel'; // Import NotificationsPanel
 
 const Navbar = () => {
   return (

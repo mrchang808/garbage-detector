@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()  # Loads variables from .env
 
+import torch
 from flask import Flask, Response, request, jsonify
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -34,11 +35,11 @@ from models import Detection, UAVStatus, Notification, Report
 # Load your trained YOLO model and set custom class names
 model = YOLO("Rubbish/runs/detect/train/weights/best.pt")
 custom_names = {
-    0: 'glass',
-    1: 'metal',
-    2: 'fishing net',
-    3: 'bottle',
-    4: 'trash',
+    0: 'plastic',
+    1: 'paper',
+    2: 'metal',
+    3: 'glass',
+    4: 'bottle',
     5: 'float',
     6: 'plastic',
     7: 'rope',
@@ -48,16 +49,25 @@ custom_names = {
 }
 model.model.names = custom_names
 
+if torch.cuda.is_available():
+    model.to('cuda')
+    print("Using GPU for inference")
+else:
+    print("Using CPU for inference")
+
 @app.route('/detect', methods=['POST'])
 def detect():
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files['file']
-    filename = secure_filename(file.filename)
+    import time
+    filename = secure_filename(f"{int(time.time())}_{file.filename}")
+    if '..' in filename or filename.startswith('/'):
+        return jsonify({"error": "Invalid filename"}), 400
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     
-    # Read file buffer first
+    # Read and decode the image
     file_bytes = file.read()
     npimg = np.frombuffer(file_bytes, np.uint8)
     img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
@@ -65,23 +75,24 @@ def detect():
     if img is None:
         return jsonify({"error": "Image could not be decoded"}), 400
 
-    file.seek(0)  # Reset file pointer before saving
-    file.save(filepath)  # Save image after reading
+    file.seek(0)
+    file.save(filepath)
 
     results = model(img)
     detections_data = []
+    notifications_to_create = []
 
+    # Process each detection
     for det in results[0].boxes:
         xyxy = det.xyxy.cpu().numpy().squeeze().tolist()
         conf = float(det.conf.item())
         cls_id = int(det.cls.item())
         class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
 
-        if conf < 0.3:
+        if conf < 0.7:
             continue
 
-        session_id = request.form.get('sessionId', 'default')  # Use default if not provided
-
+        session_id = request.form.get('sessionId', 'default')
         detection = Detection(
             class_name=class_name,
             confidence=round(conf, 2),
@@ -90,9 +101,15 @@ def detect():
             x_max=round(xyxy[2], 2),
             y_max=round(xyxy[3], 2),
             image_path=filename,
-            session_id=session_id  # Assign session ID from request or default
+            session_id=session_id
         )
         db.session.add(detection)
+
+        # Add a notification for any detected object
+        notifications_to_create.append(Notification(
+            message=f"Object detected: {class_name}",
+            severity="info"
+        ))
 
         detections_data.append({
             "className": class_name,
@@ -103,18 +120,13 @@ def detect():
                 "xmax": round(xyxy[2], 2),
                 "ymax": round(xyxy[3], 2)
             },
-            "image_path": filename  # Include image path in API response
+            "image_path": filename
         })
 
-    db.session.commit()
-
-    if class_name in ['metal', 'bottle']:  # or whatever is critical
-        new_note = Notification(
-            message=f"Important object detected: {class_name}",
-            severity="warning"
-        )
-        db.session.add(new_note)
-        db.session.commit()
+    # Add all notifications (if any) to the session
+    for note in notifications_to_create:
+        db.session.add(note)
+    db.session.commit()  # Commit all at once
 
     return jsonify({
         "numDetections": len(detections_data),
@@ -122,59 +134,131 @@ def detect():
     })
 
 def generate_frames():
-    cap = cv2.VideoCapture(0)  # Open the camera when a client connects
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Error: Could not open video device.")
         return
+
     class_colors = {
         "glass": (0, 255, 255),
         "metal": (255, 0, 0),
-        "fishing net": (0, 128, 128),
+        "trash": (0, 128, 128),
         "bottle": (128, 128, 0),
-        "trash": (0, 0, 255),
+        "bottle": (0, 0, 255),
         "float": (180, 105, 255),
         "plastic": (255, 255, 0),
         "rope": (192, 192, 192),
         "container": (0, 255, 0),
         "foam": (255, 0, 255)
     }
+    
+    frame_count = 0
+    last_detections = None  # Cache detections
+
     try:
         while True:
             success, frame = cap.read()
             if not success:
                 break
 
-            results = model(frame, verbose=False)
-            detections = results[0].boxes
+            frame_count += 1
 
-            for det in detections:
-                xyxy = det.xyxy.cpu().numpy().squeeze()
-                conf = det.conf.item()
-                cls_id = int(det.cls.item())
-                class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
+            # Run detection every 5th frame
+            if frame_count % 10 == 0:
+                results = model(frame, verbose=False)
+                last_detections = results[0].boxes  # cache detections
 
-                if conf >= 0.3:
-                    xmin, ymin, xmax, ymax = map(int, xyxy)
-                    color = class_colors.get(class_name.lower(), (0, 255, 0))
-                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
-                    cv2.putText(frame, f"{class_name}: {conf:.2f}",
-                                (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.5, color, 2)
+            if last_detections is not None:
+                for det in last_detections:
+                    xyxy = det.xyxy.cpu().numpy().squeeze()
+                    conf = det.conf.item()
+                    cls_id = int(det.cls.item())
+                    class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
+                    if conf >= 0.7:
+                        xmin, ymin, xmax, ymax = map(int, xyxy)
+                        color = class_colors.get(class_name.lower(), (0, 255, 0))
+                        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+                        cv2.putText(frame, f"{class_name}: {conf:.2f}",
+                                    (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.5, color, 2)
 
-            _, buffer = cv2.imencode('.jpg', frame)
+            ret, buffer = cv2.imencode('.jpg', frame)
+            if not ret:
+                continue
+
             data = (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
             try:
                 yield data
             except Exception as e:
-                # If an error occurs (client disconnected), break the loop
                 print("Error yielding frame:", e)
                 break
     finally:
-        cap.release()  # Release the camera when the stream stops
+        cap.release()
+
+def generate_frames_camera(index=0):
+    cap = cv2.VideoCapture(index)
+    if not cap.isOpened():
+        print(f"Error: Could not open video device at index {index}.")
+        return
+
+    # Define colors for each class
+    class_colors = {
+        "glass": (0, 255, 255),
+        "metal": (255, 0, 0),
+        "trash": (0, 128, 128),
+        "bottle": (128, 128, 0),
+        "bottle": (0, 0, 255),
+        "float": (180, 105, 255),
+        "plastic": (255, 255, 0),
+        "rope": (192, 192, 192),
+        "container": (0, 255, 0),
+        "foam": (255, 0, 255)
+    }
+
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+
+        # Run YOLO detection on the frame
+        results = model(frame, verbose=False)
+        detections = results[0].boxes
+
+        for det in detections:
+            # Get detection data
+            xyxy = det.xyxy.cpu().numpy().squeeze()
+            conf = det.conf.item()
+            cls_id = int(det.cls.item())
+            class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
+
+            if conf >= 0.7:
+                xmin, ymin, xmax, ymax = map(int, xyxy)
+                color = class_colors.get(class_name.lower(), (0, 255, 0))
+                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+                cv2.putText(frame, f"{class_name}: {conf:.2f}",
+                            (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5, color, 2)
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            continue
+
+        data = (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        try:
+            yield data
+        except Exception as e:
+            print("Error yielding frame:", e)
+            break
+
+    cap.release()
 
 @app.route('/detections', methods=['GET'])
 def get_detections():
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 25, type=int), 100)
+
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
 
@@ -188,23 +272,78 @@ def get_detections():
         end_date = datetime.strptime(end_date, "%Y-%m-%d")
         query = query.filter(Detection.timestamp <= end_date)
 
-    detections = query.order_by(Detection.timestamp.desc()).all()
-    data = [{
-        "id": d.id,
-        "className": d.class_name,
-        "confidence": d.confidence,
-        "boundingBox": {
-            "xmin": d.x_min,
-            "ymin": d.y_min,
-            "xmax": d.x_max,
-            "ymax": d.y_max
-        },
-        "timestamp": d.timestamp.isoformat(),
-        "image_path": d.image_path
-    } for d in detections]
+    paginated = query.order_by(Detection.timestamp.desc()).paginate(
+        page=page, 
+        per_page=per_page,
+        error_out=False
+    )
 
-    return jsonify(data)
+    # Format data to match frontend expectations
+    results = [
+        {
+            "id": det.id,
+            "className": det.class_name,
+            "confidence": det.confidence,
+            "boundingBox": {
+                "xmin": det.x_min,
+                "ymin": det.y_min,
+                "xmax": det.x_max,
+                "ymax": det.y_max
+            },
+            "image_path": det.image_path,
+            "timestamp": det.timestamp.isoformat()
+        } for det in paginated.items
+    ]
 
+    # Return just the array, not a wrapped object
+    return jsonify(results)
+
+@app.route('/detections/<int:detection_id>', methods=['DELETE'])
+def delete_detection(detection_id):
+    detection = Detection.query.get(detection_id)
+    if not detection:
+        return jsonify({"error": "Detection not found"}), 404
+
+    # Check if other detections exist for this image
+    image_path = detection.image_path
+    other_detections = Detection.query.filter(
+        Detection.image_path == image_path,
+        Detection.id != detection_id
+    ).count()
+
+    # Only delete image file if no other detections remain
+    if other_detections == 0:
+        full_path = os.path.join(app.config['UPLOAD_FOLDER'], image_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+
+    db.session.delete(detection)
+    db.session.commit()
+    
+    return jsonify({"message": "Detection deleted successfully", "id": detection_id}), 200
+
+# Fix delete_all_detections route
+@app.route('/detections', methods=['DELETE'])
+def delete_all_detections():
+    try:
+        # Get unique image paths first
+        unique_images = db.session.query(Detection.image_path).distinct().all()
+        unique_images = [img[0] for img in unique_images if img[0]]
+
+        # Delete all detections
+        num_deleted = Detection.query.delete()
+        db.session.commit()
+
+        # Delete all unique images
+        for img in unique_images:
+            full_path = os.path.join(app.config['UPLOAD_FOLDER'], img)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
+        return jsonify({"message": f"Deleted {num_deleted} detections and images"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to delete detections"}), 500
 import random
 
 @app.route('/uavstatus', methods=['GET'])
@@ -331,7 +470,11 @@ def generate_report():
 
 @app.route('/stream')
 def stream():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    cam_index = request.args.get('index', default=0, type=int)
+    return Response(generate_frames_camera(cam_index),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

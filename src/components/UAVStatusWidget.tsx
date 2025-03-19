@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import './UAVStatusWidget.css';
 
 interface UAVStatus {
   id: number;
@@ -33,7 +34,12 @@ const UAVStatusWidget: React.FC = () => {
   }, []);
 
   if (!status) {
-    return <div>Loading UAV status...</div>;
+    return (
+      <div className="loading-status">
+        <div className="loading-spinner"></div>
+        <p>Connecting to UAV...</p>
+      </div>
+    );
   }
 
   return (

@@ -1,10 +1,14 @@
-// LiveFeed.tsx
-import { useState } from 'react';
+import React, { useState } from 'react';
 import GarbageDetector from '../components/garbagedetector';
 import LiveCameraFeed from '../components/LiveCameraFeed';
 
 const LiveFeed = () => {
   const [isLive, setIsLive] = useState(false);
+  const [cameraIndex, setCameraIndex] = useState(0);
+
+  const handleCameraChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCameraIndex(parseInt(e.target.value));
+  };
 
   return (
     <div style={{
@@ -19,11 +23,28 @@ const LiveFeed = () => {
         Upload an image or enable real-time detection from the camera.
       </p>
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => setIsLive(false)} className="custom-button">Upload Image</button>
-        <button onClick={() => setIsLive(true)} className="custom-button">Live Camera Feed</button>
-
+        <button onClick={() => setIsLive(false)} className="custom-button">
+          Upload Image
+        </button>
+        <button onClick={() => setIsLive(true)} className="custom-button">
+          Live Feed
+        </button>
       </div>
-      {isLive ? <LiveCameraFeed key="live-camera" /> : <GarbageDetector key="detector" />}
+      {isLive && (
+        <div>
+          <label style={{ marginRight: '10px' }}>Select Camera:</label>
+          <select onChange={handleCameraChange} value={cameraIndex}>
+            <option value={0}>Laptop Camera (Index 0)</option>
+            <option value={1}>External Camera (Index 1)</option>
+            <option value={2}>Camera 2 (Index 2)</option>
+            {/* Add more options if needed */}
+          </select>
+          <div style={{ marginTop: '20px' }}>
+            <LiveCameraFeed cameraIndex={cameraIndex} />
+          </div>
+        </div>
+      )}
+      {!isLive && <GarbageDetector />}
     </div>
   );
 };

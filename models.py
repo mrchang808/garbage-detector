@@ -2,6 +2,11 @@ from datetime import datetime
 from extensions import db
 
 class Detection(db.Model):
+    __table_args__ = (
+        db.Index('idx_image_path', 'image_path'),
+        db.Index('idx_timestamp', 'timestamp'),
+        db.Index('idx_session', 'session_id'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     class_name = db.Column(db.String(50), nullable=False)
     confidence = db.Column(db.Float, nullable=False)
