@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import './UAVStatusWidget.css';
+import { ENDPOINTS } from '../api/endpoints';
 
 interface UAVStatus {
   id: number;
@@ -18,7 +19,7 @@ const UAVStatusWidget: React.FC = () => {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await axios.get<UAVStatus>('http://127.0.0.1:5000/uavstatus');
+        const response = await axios.get<UAVStatus>(ENDPOINTS.UAV_STATUS);
         setStatus(response.data);
       } catch (error) {
         console.error("Failed to fetch UAV status:", error);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
-import type { Container } from "@tsparticles/engine";
+import type { Container, ISourceOptions, MoveDirection } from "@tsparticles/engine";
 import { loadSlim } from "@tsparticles/slim";
 
 const ParticleBackground = () => {
@@ -8,36 +8,30 @@ const ParticleBackground = () => {
 
   useEffect(() => {
     initParticlesEngine(async (engine) => {
-      // loadSlim gives you the essentials for a smaller bundle size
       await loadSlim(engine);
-      // if you wanted everything, you'd do: await loadFull(engine);
     }).then(() => {
       setInit(true);
     });
   }, []);
 
-  // Called when particles successfully load
-const particlesLoaded = async (container?: Container): Promise<void> => {
-  console.log(container, "particles loaded");
-};
+  const particlesLoaded = async (container?: Container): Promise<void> => {
+    console.log(container, "particles loaded");
+  };
 
-  // Memoize the options so they don’t re-init on every render
-  const options = useMemo(() => ({
-    /* The key: fill the screen and put canvas behind everything */
+  const options: ISourceOptions = useMemo(() => ({
     fullScreen: {
       enable: true,
-      zIndex: -1, 
+      zIndex: -1,
     },
     background: {
-      /* This is the dark purple background from tsParticles itself */
-      color: { value: "#2c003e" }
+      color: { value: "#1a1a1a" },
     },
     fpsLimit: 120,
     interactivity: {
       events: {
         onClick: {
           enable: true,
-          mode: "repulse",
+          mode: "push",
         },
         onHover: {
           enable: true,
@@ -45,56 +39,72 @@ const particlesLoaded = async (container?: Container): Promise<void> => {
         },
       },
       modes: {
-        repulse: {
-          distance: 200,
-          duration: 1,
+        push: {
+          quantity: 4,
         },
         grab: {
           distance: 150,
+          links: {
+            opacity: 0.5
+          }
         },
       },
     },
     particles: {
       color: {
-        value: "#FFFFFF",
+        value: ["#E8C74D", "#A3DADC", "#FFFFFF"],
       },
       links: {
-        color: "#FFFFFF",
+        color: "#4a4a4a",
         distance: 150,
         enable: true,
         opacity: 0.3,
         width: 1,
       },
       move: {
+        direction: "none" as MoveDirection,
         enable: true,
-        speed: 1,
         outModes: {
-          default: "bounce" as const,
+          default: "bounce",
         },
-        random: true,
+        random: false,
+        speed: 0.8,
         straight: false,
       },
       number: {
-        value: 100,
+        value: 80,
         density: {
           enable: true,
           area: 800,
         },
       },
       opacity: {
-        value: 0.9,
+        value: 0.7,
+        random: true,
+        animation: {
+          enable: true,
+          speed: 1,
+          minimumValue: 0.1,
+          sync: false
+        }
       },
       shape: {
         type: "circle",
       },
       size: {
         value: { min: 1, max: 3 },
+        random: true,
+        animation: {
+          enable: true,
+          speed: 2,
+          minimumValue: 0.1,
+          sync: false
+        }
       },
     },
     detectRetina: true,
   }), []);
 
-  // Render only after engine is initialized
   if (!init) return null;
   return <Particles id="tsparticles" particlesLoaded={particlesLoaded} options={options} />;
 };

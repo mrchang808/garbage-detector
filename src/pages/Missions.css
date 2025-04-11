@@ -1,0 +1,318 @@
+/* Missions Page */
+.missions-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.page-title {
+  color: #E8C74D;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2.5rem;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.missions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.filters-container {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filter-icon {
+  color: #E8C74D;
+  font-size: 1.2rem;
+  min-width: 20px;
+}
+
+.search-input, .filter-select, .date-range-picker {
+  position: relative;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.search-input:hover, .filter-select:hover, .date-range-picker:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.search-input input, .filter-select select, .date-picker {
+  flex: 1;
+  background: none;
+  border: none;
+  color: white;
+  outline: none;
+  font-size: 1rem;
+  width: 100%;
+}
+
+input, select, .date-picker {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  width: 100%;
+  outline: none;
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 2rem;
+}
+
+.filter-select::after {
+  content: '';
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #E8C74D;
+}
+
+.date-picker {
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Override react-datepicker styles */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+/* Missions Table */
+.missions-table {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 2rem;
+}
+
+.table-header {
+  background: rgba(232, 199, 77, 0.1);
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+  font-weight: 600;
+  color: #E8C74D;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-row {
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease;
+}
+
+.table-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.completed {
+  background: rgba(0, 200, 81, 0.2);
+  color: #00C851;
+  border: 1px solid rgba(0, 200, 81, 0.3);
+}
+
+.status-badge.in_progress {
+  background: rgba(232, 199, 77, 0.2);
+  color: #E8C74D;
+  border: 1px solid rgba(232, 199, 77, 0.3);
+}
+
+.details-btn {
+  background: #A3DADC;
+  color: #1a1a1a;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.details-btn:hover {
+  background: #8bc9cc;
+  transform: translateY(-2px);
+}
+
+/* Mission Details Section */
+.mission-details {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mission-details h3 {
+  color: #E8C74D;
+  margin-bottom: 1.5rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.detail-item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-item strong {
+  display: block;
+  color: #A3DADC;
+  margin-bottom: 0.5rem;
+}
+
+.object-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.object-type-badge {
+  background: rgba(163, 218, 220, 0.1);
+  padding: 0.4rem 0.8rem;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  border: 1px solid rgba(163, 218, 220, 0.2);
+  color: #A3DADC;
+}
+
+/* React DatePicker Custom Styles */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker {
+  background: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+.react-datepicker__header {
+  background: rgba(232, 199, 77, 0.1) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-datepicker__current-month {
+  color: #E8C74D !important;
+}
+
+.react-datepicker__day {
+  color: white !important;
+}
+
+.react-datepicker__day:hover {
+  background: rgba(163, 218, 220, 0.2) !important;
+}
+
+.react-datepicker__day--selected {
+  background: #A3DADC !important;
+  color: #1a1a1a !important;
+}
+
+/* Add responsive design */
+@media (max-width: 1024px) {
+  .missions-container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .table-header, .table-row {
+    grid-template-columns: 1.2fr 1fr 1fr 0.8fr 0.8fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .missions-container {
+    padding: 1rem;
+  }
+
+  .filters-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .table-header {
+    display: none;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+  }
+
+  .table-row > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .table-row > div::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #E8C74D;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+}

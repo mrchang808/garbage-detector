@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FaFileAlt, FaCalendar, FaChartBar } from 'react-icons/fa';
+import './Reports.css';
+import { ENDPOINTS } from '../api/endpoints';
 
 interface Report {
   id: number;
@@ -15,7 +18,7 @@ const ReportsPage: React.FC = () => {
 
   const fetchReports = async () => {
     try {
-      let url = 'http://127.0.0.1:5000/reports';
+      let url = ENDPOINTS.REPORTS;
       if (sessionId) {
         url += `?session_id=${sessionId}`;
       }
@@ -28,10 +31,10 @@ const ReportsPage: React.FC = () => {
 
   const generateReport = async () => {
     try {
-      const response = await axios.post<Report>('http://127.0.0.1:5000/reports', {
+      await axios.post<Report>(ENDPOINTS.REPORTS, {
         session_id: sessionId,
       });
-      // Optionally refresh the reports list
+      // Refresh reports list after generating new report
       fetchReports();
     } catch (err) {
       console.error("Error generating report:", err);
@@ -43,39 +46,60 @@ const ReportsPage: React.FC = () => {
   }, []); // load all reports on mount
 
   return (
-    <div style={{ paddingTop: '40px' }}>
-      <h2>Reports</h2>
-      <div>
-        <label>Session ID:</label>
-        <input 
-          value={sessionId} 
-          onChange={(e) => setSessionId(e.target.value)} 
-          style={{ marginRight: '10px' }}
-        />
-        <button onClick={generateReport} className="custom-button">Generate Report</button>
-        <button onClick={fetchReports} className="custom-button">Fetch Reports</button>
+    <div className="reports-container">
+      <h2 className="page-title">Detection Reports</h2>
+
+      <div className="reports-controls">
+        <div className="search-section">
+          <div className="input-group">
+            <FaCalendar className="input-icon" />
+            <input 
+              value={sessionId} 
+              onChange={(e) => setSessionId(e.target.value)} 
+              placeholder="Enter Session ID"
+            />
+          </div>
+          
+          <button onClick={generateReport} className="generate-btn">
+            <FaFileAlt /> Generate Report
+          </button>
+          
+          <button onClick={fetchReports} className="refresh-btn">
+            <FaChartBar /> Refresh Reports
+          </button>
+        </div>
       </div>
-      <div style={{
-        maxWidth: '500px',
-        margin: '0 auto', 
-        padding: '1rem'
-        }}>
-        {reports.map((rep) => (
-          <div key={rep.id} style={{
-            border: '1px solid #ccc', 
-            padding: '1rem', 
-            marginBottom: '1rem'
-          }}>
-            <p><strong>Report ID:</strong> {rep.id}</p>
-            <p><strong>Session:</strong> {rep.session_id}</p>
-            <p><strong>Total Detections:</strong> {rep.total_detections}</p>
-            <p><strong>Detected Objects:</strong></p>
-            <ul>
-              {Object.entries(rep.detected_objects).map(([cls, count]) => (
-                <li key={cls}>{cls}: {count}</li>
-              ))}
-            </ul>
-            <small>Generated at: {new Date(rep.generated_at).toLocaleString()}</small>
+
+      <div className="reports-grid">
+        {reports.map((report) => (
+          <div key={report.id} className="report-card">
+            <div className="report-header">
+              <FaFileAlt className="report-icon" />
+              <span className="report-id">Report #{report.id}</span>
+            </div>
+            
+            <div className="report-body">
+              <div className="report-info">
+                <span>Session: {report.session_id}</span>
+                <span>Total Detections: {report.total_detections}</span>
+              </div>
+              
+              <div className="detections-breakdown">
+                <h4>Detected Objects:</h4>
+                <ul>
+                  {Object.entries(report.detected_objects).map(([cls, count]) => (
+                    <li key={cls}>
+                      <span className="object-class">{cls}</span>
+                      <span className="object-count">{count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            <div className="report-footer">
+              <small>Generated: {new Date(report.generated_at).toLocaleString()}</small>
+            </div>
           </div>
         ))}
       </div>

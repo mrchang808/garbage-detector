@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ENDPOINTS } from '../api/endpoints';
 
 interface Detection {
   className: string;
@@ -33,7 +34,7 @@ function GarbageDetector() {
       formData.append('sessionId', sessionId); // send the sessionId with the file
 
       // Send file to the backend
-      const response = await fetch('http://127.0.0.1:5000/detect', {
+      const response = await fetch(ENDPOINTS.DETECT, {
         method: 'POST',
         body: formData,
       });

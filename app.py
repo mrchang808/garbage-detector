@@ -14,9 +14,13 @@ import numpy as np
 from ultralytics import YOLO
 from datetime import datetime
 from sqlalchemy import and_
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
 CORS(app)
+
+bcrypt = Bcrypt(app)
 
 # Configure SQLAlchemy to use PostgreSQL from the environment
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
@@ -24,13 +28,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Ensure this folder exists!
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Configure JWT
+app.config['JWT_SECRET_KEY'] = 'your-super-secret-key'  # Change this to a secure key!
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+jwt = JWTManager(app)
+
 # Import db from the extensions module
 from extensions import db
 db.init_app(app)  # Register your app with SQLAlchemy
 migrate = Migrate(app, db)
 
 # Import the Detection model after initializing db
-from models import Detection, UAVStatus, Notification, Report
+from models import Detection, UAVStatus, Notification, Report, User, Mission, Drone
 
 # Load your trained YOLO model and set custom class names
 model = YOLO("Rubbish/runs/detect/train/weights/best.pt")
@@ -101,7 +112,9 @@ def detect():
             x_max=round(xyxy[2], 2),
             y_max=round(xyxy[3], 2),
             image_path=filename,
-            session_id=session_id
+            session_id=session_id,
+            latitude=request.form.get('latitude'),
+            longitude=request.form.get('longitude')
         )
         db.session.add(detection)
 
@@ -256,47 +269,22 @@ def generate_frames_camera(index=0):
 
 @app.route('/detections', methods=['GET'])
 def get_detections():
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 25, type=int), 100)
-
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-
-    query = Detection.query
-
-    if start_date:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        query = query.filter(Detection.timestamp >= start_date)
-
-    if end_date:
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
-        query = query.filter(Detection.timestamp <= end_date)
-
-    paginated = query.order_by(Detection.timestamp.desc()).paginate(
-        page=page, 
-        per_page=per_page,
-        error_out=False
-    )
-
-    # Format data to match frontend expectations
-    results = [
-        {
-            "id": det.id,
-            "className": det.class_name,
-            "confidence": det.confidence,
-            "boundingBox": {
-                "xmin": det.x_min,
-                "ymin": det.y_min,
-                "xmax": det.x_max,
-                "ymax": det.y_max
-            },
-            "image_path": det.image_path,
-            "timestamp": det.timestamp.isoformat()
-        } for det in paginated.items
-    ]
-
-    # Return just the array, not a wrapped object
-    return jsonify(results)
+    detections = Detection.query.order_by(Detection.timestamp.desc()).all()
+    return jsonify([{
+        "id": det.id,
+        "class_name": det.class_name,
+        "confidence": det.confidence,
+        "x_min": det.x_min,
+        "y_min": det.y_min,
+        "x_max": det.x_max,
+        "y_max": det.y_max,
+        "image_path": det.image_path,
+        "detection_type": det.detection_type,
+        "session_id": det.session_id,
+        "timestamp": det.timestamp.isoformat(),
+        "latitude": det.latitude,
+        "longitude": det.longitude
+    } for det in detections])
 
 @app.route('/detections/<int:detection_id>', methods=['DELETE'])
 def delete_detection(detection_id):
@@ -379,18 +367,14 @@ def create_uav_status():
 
 @app.route('/notifications', methods=['GET'])
 def get_notifications():
-    # Return all notifications or only those unseen, etc.
     notifications = Notification.query.order_by(Notification.timestamp.desc()).all()
-    data = []
-    for note in notifications:
-        data.append({
-            "id": note.id,
-            "message": note.message,
-            "severity": note.severity,
-            "timestamp": note.timestamp.isoformat(),
-            "seen": note.seen,
-        })
-    return jsonify(data)
+    return jsonify([{
+        'id': note.id,
+        'message': note.message,
+        'severity': note.severity,
+        'timestamp': note.timestamp.isoformat(),
+        'seen': note.seen
+    } for note in notifications])
 
 @app.route('/notifications', methods=['POST'])
 def create_notification():
@@ -474,7 +458,199 @@ def stream():
     return Response(generate_frames_camera(cam_index),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    user = User.query.filter_by(email=data.get('email')).first()
 
+    if not user or not user.check_password(data.get('password')):
+        return jsonify({"msg": "Bad credentials"}), 401
+
+    # Create token with user ID as identity and additional claims
+    access_token = create_access_token(
+        identity=str(user.id),  # Identity is a string (user ID)
+        additional_claims={  # Add user data as additional claims
+            'email': user.email,
+            'role': user.role
+        }
+    )
+    
+    # Update last login
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+    
+    # Return both token and user data
+    response_data = {
+        'access_token': access_token,
+        'user': {
+            'id': user.id,
+            'email': user.email,
+            'role': user.role
+        }
+    }
+    
+    return jsonify(response_data), 200
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({"msg": "User already exists"}), 400
+
+    user = User(email=data['email'])
+    user.set_password(data['password'])
+    user.role = data.get('role', 'user')
+    
+    db.session.add(user)
+    db.session.commit()
+    
+    return jsonify({"msg": "User created"}), 201
+
+# Example of a protected route
+@app.route('/api/protected', methods=['GET'])
+@jwt_required()
+def protected():
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
+
+# Get current user
+@app.route('/api/me', methods=['GET'])
+@jwt_required()
+def get_current_user():
+    current_user = get_jwt_identity()
+    return jsonify(current_user), 200
+
+@app.route('/api/users', methods=['GET'])
+@jwt_required()
+def get_users():
+    try:
+        # Get JWT claims
+        claims = get_jwt()
+        if claims.get('role') != 'admin':
+            return jsonify({"msg": "Unauthorized"}), 403
+        
+        users = User.query.all()
+        return jsonify([{
+            'id': user.id,
+            'email': user.email,
+            'role': user.role,
+            'last_login': user.last_login.isoformat() if user.last_login else None,
+            'created_at': user.created_at.isoformat()
+        } for user in users])
+    except Exception as e:
+        print(f"Error in get_users: {str(e)}")
+        return jsonify({"msg": "Error fetching users"}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@jwt_required()
+def update_user(user_id):
+    try:
+        current_user = get_jwt_identity()
+        if current_user['role'] != 'admin':
+            return jsonify({"msg": "Unauthorized"}), 403
+        
+        user = User.query.get_or_404(user_id)
+        data = request.json
+        
+        if 'email' in data:
+            user.email = data['email']
+        if 'role' in data:
+            user.role = data['role']
+            
+        db.session.commit()
+        return jsonify({"msg": "User updated successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/drones', methods=['GET'])
+@jwt_required()
+def get_drones():
+    try:
+        drones = Drone.query.all()
+        return jsonify([{
+            'id': drone.id,
+            'name': drone.name,
+            'status': drone.status,
+            'lastMission': Mission.query.get(drone.last_mission_id).start_time.isoformat() if drone.last_mission_id else None
+        } for drone in drones])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+def delete_user(user_id):
+    current_user = get_jwt_identity()
+    if current_user['role'] != 'admin':
+        return jsonify({"msg": "Unauthorized"}), 403
+    
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user['id']:
+        return jsonify({"msg": "Cannot delete yourself"}), 400
+    
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"msg": "User deleted successfully"})
+
+@app.route('/stats', methods=['GET'])
+def get_stats():
+    detections = Detection.query.all()
+    stats = {
+        'plastic': 0,
+        'metal': 0,
+        'glass': 0,
+        'paper': 0,
+        'bottle': 0,
+        'float': 0,
+        'rope': 0,
+        'container': 0,
+        'foam': 0
+    }
+    
+    for detection in detections:
+        class_name = detection.class_name.lower()
+        if class_name in stats:
+            stats[class_name] += 1
+    
+    return jsonify(stats)
+
+@app.route('/missions', methods=['GET'])
+def get_missions():
+    missions = Mission.query.order_by(Mission.start_time.desc()).all()
+    return jsonify([{
+        'id': mission.id,
+        'start_time': mission.start_time.isoformat() if mission.start_time else None,
+        'end_time': mission.end_time.isoformat() if mission.end_time else None,
+        'status': mission.status,
+        'detected_objects': mission.detected_objects,
+        'drone_id': mission.drone_id
+    } for mission in missions])
+
+@app.route('/missions/<int:mission_id>/details', methods=['GET'])
+def get_mission_details(mission_id):
+    mission = Mission.query.get_or_404(mission_id)
+    
+    # Get detections during mission timeframe
+    detections = Detection.query.filter(
+        Detection.timestamp.between(mission.start_time, mission.end_time)
+    ).order_by(Detection.timestamp).all()
+    
+    start_location = None
+    end_location = None
+    route = []
+    
+    if detections:
+        start = detections[0]
+        end = detections[-1]
+        start_location = f"{start.latitude}, {start.longitude}"
+        end_location = f"{end.latitude}, {end.longitude}"
+        route = [f"{d.latitude}, {d.longitude}" for d in detections if d.latitude and d.longitude]
+    
+    return jsonify({
+        'startLocation': start_location,
+        'endLocation': end_location,
+        'objectTypes': mission.detected_objects,
+        'route': route
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

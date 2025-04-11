@@ -1,6 +1,15 @@
+/* Add at the top of the file */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 html, body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  overflow-x: hidden;
   height: 100%;
 }
 
@@ -23,8 +32,14 @@ body {
   padding: 0;
   min-width: 320px;
   min-height: 100vh;
-  /* The background is now handled by tsParticles; you could set a fallback color here */
   background-color: #1a1a1a;
+  position: relative; /* Add this */
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 a {

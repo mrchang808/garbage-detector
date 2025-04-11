@@ -1,25 +1,47 @@
 import React from 'react';
+import { FaGraduationCap, FaCode, FaBrain } from 'react-icons/fa';
+import '../styles/Pages.css';
 
 const About = () => {
   return (
-    <div style={{
-      padding: '40px',
-      maxWidth: '800px',
-      margin: '0 auto',
-      fontFamily: 'Arial, sans-serif',
-    }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>About This Project</h2>
-      <p style={{ fontSize: '18px', lineHeight: '1.6' }}>
-        This UAV-Based Object Detection System is an integrated solution that combines drone technology, machine learning, and modern web development to enable real-time detection of objects—particularly waste materials such as plastic, glass, metal, and paper.
-      </p>
-      <p style={{ fontSize: '18px', lineHeight: '1.6' }}>
-        The back-end is built with Flask and leverages an Ultralytics YOLO model (trained on a custom dataset) for fast and accurate object detection.
-        The front-end is developed using React, TypeScript, and Vite, providing an intuitive interface for live monitoring and analytics.
-      </p>
-      <p style={{ fontSize: '18px', lineHeight: '1.6' }}>
-        This project was developed as part of a diploma at the International Information Technology University and adheres to the academic guidelines
-        and anti-plagiarism requirements set forth by the institution.
-      </p>
+    <div className="page-container">
+      <h1 className="page-title">About This Project</h1>
+
+      <div className="feature-grid">
+        <div className="feature-card">
+          <FaGraduationCap className="feature-icon" />
+          <h3 className="card-title">Academic Project</h3>
+          <p className="card-text">
+            Developed as a diploma project at the International Information Technology University,
+            adhering to academic standards and anti-plagiarism requirements.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <FaBrain className="feature-icon" />
+          <h3 className="card-title">Advanced AI</h3>
+          <p className="card-text">
+            Utilizes state-of-the-art YOLO model trained on custom datasets for precise
+            waste material detection including plastic, glass, metal, and paper.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <FaCode className="feature-icon" />
+          <h3 className="card-title">Modern Tech Stack</h3>
+          <p className="card-text">
+            Built with Flask backend for robust processing and React TypeScript frontend
+            for a responsive and intuitive user interface.
+          </p>
+        </div>
+      </div>
+
+      <div className="highlight-box">
+        <p className="text-content">
+          This integrated solution combines drone technology, machine learning, and modern web development
+          to enable real-time detection and monitoring of environmental waste materials.
+        </p>
+      </div>
     </div>
   );
 };

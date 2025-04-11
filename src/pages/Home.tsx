@@ -1,26 +1,53 @@
 import React from 'react';
+import { FaRobot, FaChartLine, FaGlobe } from 'react-icons/fa';
+import { GiDeliveryDrone } from "react-icons/gi";
+import '../styles/Pages.css';
 
 const Home = () => {
   return (
-    <div style={{
-      maxWidth: '800px',
-      margin: '4rem auto 2rem', // adds more space above the div
-      padding: '1rem',
-      textAlign: 'left',   // or 'center' if you want headings centered
-      backgroundColor: 'rgba(255, 255, 255, 0.05)', // optional translucent card
-      borderRadius: '8px'
-    }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>
-      Welcome to the UAV-Based Object Detection System
-      </h2>
-      <p style={{ fontSize: '18px', lineHeight: '1.6' }}>
-      This system integrates advanced machine learning (YOLO) with UAV technology to deliver real-time object detection.
-      Developed as part of a diploma project at the International Information Technology University, it aims to enhance
-      waste management and environmental monitoring through automated aerial analytics.
-      </p>
-      <p style={{ fontSize: '18px', lineHeight: '1.6' }}>
-      Use the navigation links above to explore the live feed, view detailed analytics on the Dashboard, or read more in the About section.
-      </p>
+    <div className="page-container">
+      <h1 className="page-title">UAV-Based Object Detection System</h1>
+      
+      <div className="highlight-box">
+        <p className="text-content">
+          Advanced machine learning meets drone technology for real-time environmental monitoring
+          and waste management solutions.
+        </p>
+      </div>
+
+      <div className="feature-grid">
+        <div className="feature-card">
+          <GiDeliveryDrone className="feature-icon" />
+          <h3 className="card-title">Drone Integration</h3>
+          <p className="card-text">
+            Real-time aerial surveillance with advanced UAV technology for comprehensive coverage and monitoring.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <FaRobot className="feature-icon" />
+          <h3 className="card-title">AI Detection</h3>
+          <p className="card-text">
+            Powered by YOLO machine learning model for accurate object detection and classification in real-time.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <FaChartLine className="feature-icon" />
+          <h3 className="card-title">Analytics</h3>
+          <p className="card-text">
+            Comprehensive data analysis and reporting for informed decision-making and trend tracking.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <FaGlobe className="feature-icon" />
+          <h3 className="card-title">Environmental Impact</h3>
+          <p className="card-text">
+            Contributing to cleaner environments through automated waste detection and management.
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

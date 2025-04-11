@@ -1,0 +1,139 @@
+.page-container {
+  max-width: 1200px;
+  width: 100%;
+  margin: 2rem auto;
+  padding: 2.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.page-title {
+  color: #E8C74D;
+  text-align: center;
+  margin-bottom: 2.5rem;
+  font-size: 2.5rem;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.highlight-box {
+  background: rgba(232, 199, 77, 0.1);
+  border-left: 4px solid #E8C74D;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin: 3rem 0;
+}
+
+.feature-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 12px;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.feature-icon {
+  color: #E8C74D;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  color: #A3DADC;
+  font-size: 1.5rem;
+  margin: 1rem 0;
+}
+
+.card-text {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+}
+
+.text-content {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: 1.5rem;
+}
+
+/* Add responsive padding */
+@media (max-width: 1280px) {
+  .page-container {
+    margin: 2rem;
+  }
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .page-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+
+  .page-title {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .feature-card {
+    padding: 1.5rem;
+  }
+
+  .highlight-box {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+
+  .text-content {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container {
+    margin: 0.5rem;
+    padding: 1rem;
+  }
+
+  .page-title {
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .feature-card {
+    padding: 1rem;
+  }
+
+  .feature-icon {
+    font-size: 2rem;
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+  }
+
+  .card-text {
+    font-size: 0.875rem;
+  }
+}

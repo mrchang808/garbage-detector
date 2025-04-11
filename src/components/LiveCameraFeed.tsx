@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { ENDPOINTS } from '../api/endpoints';
 
 interface LiveCameraFeedProps {
   cameraIndex: number;
@@ -18,7 +19,7 @@ const LiveCameraFeed: React.FC<LiveCameraFeedProps> = ({ cameraIndex }) => {
   return (
     <img
       ref={imgRef}
-      src={`http://127.0.0.1:5000/stream?index=${cameraIndex}`}
+      src={ENDPOINTS.STREAM(cameraIndex)}
       alt="Live Camera Feed"
       style={{ width: '100%', borderRadius: '8px' }}
     />

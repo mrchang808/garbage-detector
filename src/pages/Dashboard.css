@@ -1,8 +1,9 @@
 /* General Styling */
 .dashboard-container {
-  padding: 40px;
-  max-width: 1100px;
-  margin: auto;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
   color: #ffffff;
   font-family: 'Inter', sans-serif;
 }
@@ -12,6 +13,72 @@
   font-size: 2rem;
   margin-bottom: 20px;
   font-weight: 600;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.metric-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  transition: transform 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metric-card:hover {
+  transform: translateY(-5px);
+}
+
+.yellow-bg {
+  background: #E8C74D;
+}
+
+.blue-bg {
+  background: #A3DADC;
+}
+
+.metric-icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.metric-card h3 {
+  font-size: 2.2rem;
+  margin: 10px 0;
+}
+
+/* Map Section */
+.map-section {
+  width: 100%;
+  height: 400px;
+  margin-bottom: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden; /* Add this */
+}
+
+/* Add this new style for leaflet container */
+.map-section .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 8px;
+  z-index: 1; /* Lower z-index to stay within map-section */
+}
+
+.section-title {
+  color: #E8C74D;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
 }
 
 /* Filters Styling */
@@ -145,7 +212,6 @@ select:hover, input[type="range"]:hover {
   box-shadow: 0px 0px 8px rgba(255, 255, 255, 0.3);
 }
 
-/* Enhances the dropdown options */
 .select-dropdown option {
   background-color: rgba(50, 50, 50, 0.9);
   color: white;
@@ -153,7 +219,6 @@ select:hover, input[type="range"]:hover {
   font-size: 14px;
 }
 
-/* When an option is selected */
 .select-dropdown:focus {
   outline: none;
   box-shadow: 0px 0px 10px rgba(0, 255, 255, 0.7);
@@ -175,37 +240,88 @@ select:hover, input[type="range"]:hover {
 
 /* Recently Added Section */
 .recent-detections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
   background-color: rgba(255, 255, 255, 0.1);
   padding: 15px;
   border-radius: 8px;
   backdrop-filter: blur(5px);
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-  margin-bottom: 30px;
+  margin-top: 20px;
   text-align: center;
 }
 
 .recent-detection-grid {
-  display: flex;
-  justify-content: space-around;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .recent-detection-card {
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  font-size: 14px;
-  color: white;
-  min-width: 120px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+  transition: transform 0.2s ease;
 }
 
-/* Ensure detection grid is responsive */
-.detection-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-  padding: 10px;
+.recent-detection-card:hover {
+  transform: translateY(-2px);
+}
+
+.recent-detection-card.error {
+  border-left-color: #ff4444;
+}
+
+.recent-detection-card.warning {
+  border-left-color: #ffbb33;
+}
+
+.recent-detection-card.info {
+  border-left-color: #00C851;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.notification-time {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.notification-message {
+  color: white;
+  margin: 0.5rem 0;
+  line-height: 1.4;
+}
+
+.notification-status {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: right;
+  margin-top: 0.5rem;
+}
+
+.severity-icon {
+  font-size: 1.2rem;
+}
+
+.severity-icon.error {
+  color: #ff4444;
+}
+
+.severity-icon.warning {
+  color: #ffbb33;
+}
+
+.severity-icon.info {
+  color: #00C851;
 }
 
 /* Additional styling for the detection details */
@@ -270,4 +386,78 @@ tbody tr:nth-child(even) {
 
 .delete-button:hover {
   background-color: darkred;
+}
+
+/* Chart Section */
+.chart-section {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 2rem;
+}
+
+.chart-section canvas {
+  width: 100% !important;
+  height: 400px !important;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+/* Add responsive design */
+@media (max-width: 1200px) {
+  .chart-section {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-section canvas {
+    height: 300px !important;
+  }
+
+  .map-section {
+    height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-section,
+  .map-section {
+    padding: 15px;
+  }
+
+  .chart-section canvas {
+    height: 250px !important;
+    padding: 10px;
+  }
+
+  .map-section {
+    height: 250px;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .recent-detection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recent-detection-card {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Ensure proper spacing between sections */
+.dashboard-container > div:not(:last-child) {
+  margin-bottom: 2rem;
 }
