@@ -63,13 +63,14 @@ class User(db.Model):
 class Drone(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
-    status = db.Column(db.String(20), default='idle')
-    last_mission_id = db.Column(db.Integer, db.ForeignKey('mission.id'))
+    status = db.Column(db.String(20))
+    last_mission_id = db.Column(db.Integer, db.ForeignKey('mission.id'), nullable=True)
 
 class Mission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    drone_id = db.Column(db.Integer, db.ForeignKey('drone.id'), nullable=False)
     id = db.Column(db.Integer, primary_key=True)
     start_time = db.Column(db.DateTime)
     end_time = db.Column(db.DateTime)
     status = db.Column(db.String(20))
     detected_objects = db.Column(db.JSON)
-    drone_id = db.Column(db.Integer, db.ForeignKey('drone.id'))
