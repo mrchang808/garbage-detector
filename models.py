@@ -73,4 +73,3 @@ class Mission(db.Model):
     start_time = db.Column(db.DateTime)
     end_time = db.Column(db.DateTime)
     status = db.Column(db.String(20))
-    detected_objects = db.Column(db.JSON)
