@@ -43,28 +43,131 @@ migrate = Migrate(app, db)
 # Import the Detection model after initializing db
 from models import Detection, UAVStatus, Notification, Report, User, Mission, Drone
 
-# Load your trained YOLO model and set custom class names
-model = YOLO("Rubbish/runs/detect/train/weights/best.pt")
-custom_names = {
-    0: 'plastic',
-    1: 'paper',
-    2: 'metal',
-    3: 'glass',
-    4: 'bottle',
-    5: 'float',
-    6: 'plastic',
-    7: 'rope',
-    8: 'container',
-    9: 'foam',
-    10: 'foam'
-}
-model.model.names = custom_names
+# Load models with custom names
+upload_model = YOLO("Rubbish/runs/detect/train/weights/best.pt")
+live_model = YOLO("Rubbish/runs/detect/train/weights/best1.pt")
 
+# Define custom class names
+class_names = ['plastic', 'paper', 'metal', 'glass', 'bottle', 
+               'float', 'plastic', 'rope', 'container', 'foam', 'foam']
+
+# Update models' class names
+upload_model.model.names = class_names
+live_model.model.names = class_names
+
+# Check CUDA availability
 if torch.cuda.is_available():
-    model.to('cuda')
+    upload_model.to('cuda')
+    live_model.to('cuda')
     print("Using GPU for inference")
 else:
     print("Using CPU for inference")
+
+# Update the detection function to use model.names correctly
+def get_class_name(model, cls_id):
+    try:
+        return model.model.names[cls_id]
+    except (IndexError, KeyError):
+        return f"class_{cls_id}"
+
+# Update the generate_frames_camera function
+def generate_frames_camera(index=0):
+    cap = cv2.VideoCapture(index)
+    if not cap.isOpened():
+        print(f"Error: Could not open video device at index {index}.")
+        return
+
+    class_colors = {
+        "glass": (0, 255, 255),
+        "metal": (255, 0, 0),
+        "trash": (0, 128, 128),
+        "bottle": (0, 0, 255),
+        "float": (180, 105, 255),
+        "plastic": (255, 255, 0),
+        "rope": (192, 192, 192),
+        "container": (0, 255, 0),
+        "foam": (255, 0, 255)
+    }
+
+    frame_count = 0
+    last_detections = None
+    detection_interval = 3  # Run detection every N frames
+    frame_width = 640  # Reduced frame size for faster processing
+    frame_height = 480
+
+    try:
+        while True:
+            success, frame = cap.read()
+            if not success:
+                break
+
+            # Resize frame for faster processing
+            frame = cv2.resize(frame, (frame_width, frame_height))
+            frame_count += 1
+
+            # Run detection at intervals
+            if frame_count % detection_interval == 0:
+                try:
+                    results = live_model(frame, verbose=False)
+                    if len(results) > 0:
+                        last_detections = results[0].boxes
+                except Exception as e:
+                    print(f"Detection error: {e}")
+                    continue
+
+            # Draw cached detections
+            if last_detections is not None and len(last_detections) > 0:
+                try:
+                    for det in last_detections:
+                        xyxy = det.xyxy[0].cpu().numpy()
+                        conf = float(det.conf)
+                        cls_id = int(det.cls)
+                        class_name = get_class_name(live_model, cls_id)
+
+                        if conf >= 0.7:
+                            xmin, ymin, xmax, ymax = map(int, xyxy)
+                            color = class_colors.get(class_name.lower(), (0, 255, 0))
+                            
+                            # Draw detection box
+                            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+                            
+                            # Draw label with confidence
+                            label = f"{class_name}: {conf:.2f}"
+                            (label_width, label_height), _ = cv2.getTextSize(
+                                label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+                            
+                            # Draw label background
+                            cv2.rectangle(frame, 
+                                        (xmin, ymin - label_height - 5),
+                                        (xmin + label_width, ymin),
+                                        color, -1)
+                            
+                            # Draw label text
+                            cv2.putText(frame, label,
+                                      (xmin, ymin - 5),
+                                      cv2.FONT_HERSHEY_SIMPLEX,
+                                      0.5, (255, 255, 255), 2)
+                except Exception as e:
+                    print(f"Drawing error: {e}")
+                    continue
+
+            # Encode frame with lower quality for faster transmission
+            ret, buffer = cv2.imencode('.jpg', frame, 
+                                     [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if not ret:
+                continue
+
+            # Yield frame data
+            try:
+                yield (b'--frame\r\n'
+                      b'Content-Type: image/jpeg\r\n\r\n' + 
+                      buffer.tobytes() + b'\r\n')
+            except Exception as e:
+                print(f"Stream error: {e}")
+                break
+
+    finally:
+        cap.release()
 
 @app.route('/detect', methods=['POST'])
 def detect():
@@ -89,7 +192,7 @@ def detect():
     file.seek(0)
     file.save(filepath)
 
-    results = model(img)
+    results = upload_model(img)
     detections_data = []
     notifications_to_create = []
 
@@ -98,7 +201,7 @@ def detect():
         xyxy = det.xyxy.cpu().numpy().squeeze().tolist()
         conf = float(det.conf.item())
         cls_id = int(det.cls.item())
-        class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
+        class_name = get_class_name(upload_model, cls_id)
 
         if conf < 0.7:
             continue
@@ -178,7 +281,7 @@ def generate_frames():
 
             # Run detection every 5th frame
             if frame_count % 10 == 0:
-                results = model(frame, verbose=False)
+                results = live_model(frame, verbose=False)
                 last_detections = results[0].boxes  # cache detections
 
             if last_detections is not None:
@@ -186,7 +289,7 @@ def generate_frames():
                     xyxy = det.xyxy.cpu().numpy().squeeze()
                     conf = det.conf.item()
                     cls_id = int(det.cls.item())
-                    class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
+                    class_name = live_model.model.names.get(cls_id, f"cls_{cls_id}")
                     if conf >= 0.7:
                         xmin, ymin, xmax, ymax = map(int, xyxy)
                         color = class_colors.get(class_name.lower(), (0, 255, 0))
@@ -208,64 +311,6 @@ def generate_frames():
                 break
     finally:
         cap.release()
-
-def generate_frames_camera(index=0):
-    cap = cv2.VideoCapture(index)
-    if not cap.isOpened():
-        print(f"Error: Could not open video device at index {index}.")
-        return
-
-    # Define colors for each class
-    class_colors = {
-        "glass": (0, 255, 255),
-        "metal": (255, 0, 0),
-        "trash": (0, 128, 128),
-        "bottle": (128, 128, 0),
-        "bottle": (0, 0, 255),
-        "float": (180, 105, 255),
-        "plastic": (255, 255, 0),
-        "rope": (192, 192, 192),
-        "container": (0, 255, 0),
-        "foam": (255, 0, 255)
-    }
-
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-
-        # Run YOLO detection on the frame
-        results = model(frame, verbose=False)
-        detections = results[0].boxes
-
-        for det in detections:
-            # Get detection data
-            xyxy = det.xyxy.cpu().numpy().squeeze()
-            conf = det.conf.item()
-            cls_id = int(det.cls.item())
-            class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
-
-            if conf >= 0.7:
-                xmin, ymin, xmax, ymax = map(int, xyxy)
-                color = class_colors.get(class_name.lower(), (0, 255, 0))
-                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
-                cv2.putText(frame, f"{class_name}: {conf:.2f}",
-                            (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5, color, 2)
-
-        ret, buffer = cv2.imencode('.jpg', frame)
-        if not ret:
-            continue
-
-        data = (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-        try:
-            yield data
-        except Exception as e:
-            print("Error yielding frame:", e)
-            break
-
-    cap.release()
 
 @app.route('/detections', methods=['GET'])
 def get_detections():
