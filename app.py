@@ -16,6 +16,8 @@ from datetime import datetime
 from sqlalchemy import and_
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from flask_bcrypt import Bcrypt
+import re
+from validate_email import validate_email
 
 app = Flask(__name__)
 CORS(app)
@@ -44,21 +46,13 @@ migrate = Migrate(app, db)
 from models import Detection, UAVStatus, Notification, Report, User, Mission, Drone
 
 # Load models with custom names
-upload_model = YOLO("Rubbish/runs/detect/train/weights/best.pt")
-live_model = YOLO("Rubbish/runs/detect/train/weights/best1.pt")
+model = YOLO("Rubbish/runs/detect/train/weights/best1.pt")
 
-# Define custom class names
-class_names = ['plastic', 'paper', 'metal', 'glass', 'bottle', 
-               'float', 'plastic', 'rope', 'container', 'foam', 'foam']
-
-# Update models' class names
-upload_model.model.names = class_names
-live_model.model.names = class_names
+# Define custom class names - we'll keep the default model names
 
 # Check CUDA availability
 if torch.cuda.is_available():
-    upload_model.to('cuda')
-    live_model.to('cuda')
+    model.to('cuda')
     print("Using GPU for inference")
 else:
     print("Using CPU for inference")
@@ -66,7 +60,7 @@ else:
 # Update the detection function to use model.names correctly
 def get_class_name(model, cls_id):
     try:
-        return model.model.names[cls_id]
+        return model.names[cls_id]
     except (IndexError, KeyError):
         return f"class_{cls_id}"
 
@@ -108,7 +102,7 @@ def generate_frames_camera(index=0):
             # Run detection at intervals
             if frame_count % detection_interval == 0:
                 try:
-                    results = live_model(frame, verbose=False)
+                    results = model(frame, verbose=False)
                     if len(results) > 0:
                         last_detections = results[0].boxes
                 except Exception as e:
@@ -122,9 +116,9 @@ def generate_frames_camera(index=0):
                         xyxy = det.xyxy[0].cpu().numpy()
                         conf = float(det.conf)
                         cls_id = int(det.cls)
-                        class_name = get_class_name(live_model, cls_id)
+                        class_name = get_class_name(model, cls_id)
 
-                        if conf >= 0.7:
+                        if conf >= 0.75:
                             xmin, ymin, xmax, ymax = map(int, xyxy)
                             color = class_colors.get(class_name.lower(), (0, 255, 0))
                             
@@ -192,7 +186,7 @@ def detect():
     file.seek(0)
     file.save(filepath)
 
-    results = upload_model(img)
+    results = model(img)
     detections_data = []
     notifications_to_create = []
 
@@ -201,7 +195,7 @@ def detect():
         xyxy = det.xyxy.cpu().numpy().squeeze().tolist()
         conf = float(det.conf.item())
         cls_id = int(det.cls.item())
-        class_name = get_class_name(upload_model, cls_id)
+        class_name = get_class_name(model, cls_id)
 
         if conf < 0.7:
             continue
@@ -281,7 +275,7 @@ def generate_frames():
 
             # Run detection every 5th frame
             if frame_count % 10 == 0:
-                results = live_model(frame, verbose=False)
+                results = model(frame, verbose=False)
                 last_detections = results[0].boxes  # cache detections
 
             if last_detections is not None:
@@ -289,7 +283,7 @@ def generate_frames():
                     xyxy = det.xyxy.cpu().numpy().squeeze()
                     conf = det.conf.item()
                     cls_id = int(det.cls.item())
-                    class_name = live_model.model.names.get(cls_id, f"cls_{cls_id}")
+                    class_name = model.model.names.get(cls_id, f"cls_{cls_id}")
                     if conf >= 0.7:
                         xmin, ymin, xmax, ymax = map(int, xyxy)
                         color = class_colors.get(class_name.lower(), (0, 255, 0))
@@ -536,20 +530,125 @@ def login():
     
     return jsonify(response_data), 200
 
+# Add these validation functions after the imports
+def validate_password(password):
+    """
+    Validate password strength
+    - At least 8 characters long
+    - Contains at least one digit
+    - Contains at least one letter
+    - Contains at least one special character
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not re.search(r"\d", password):
+        return False, "Password must contain at least one number"
+    
+    if not re.search(r"[A-Za-z]", password):
+        return False, "Password must contain at least one letter"
+    
+    if not re.search(r"[ !@#$%&'()*+,-./[\\\]^_`{|}~"+r'"]', password):
+        return False, "Password must contain at least one special character"
+    
+    return True, ""
+
+def validate_email_address(email):
+    """
+    Validate email format and existence
+    """
+    if len(email) > 50:
+        return False, "Email address is too long"
+    
+    if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+        return False, "Invalid email format"
+    
+    try:
+        # Configure validate_email with DNS checking but without SMTP verification
+        is_valid = validate_email(
+            email_address=email,
+            check_format=True,
+            check_blacklist=True,
+            check_dns=True,
+            dns_timeout=10,
+            check_smtp=False
+        )
+        
+        if not is_valid:
+            return False, "Email address appears to be invalid"
+            
+    except Exception as e:
+        print(f"Email validation error: {str(e)}")
+        # If validation fails, we'll still allow the email if it matches basic format
+        pass
+    
+    # List of common disposable email providers
+    disposable_domains = ['tempmail.com', 'throwawaymail.com']
+    domain = email.split('@')[1].lower()
+    if domain in disposable_domains:
+        return False, "Disposable email addresses are not allowed"
+    
+    return True, ""
+
+# Update the register route with validation
 @app.route('/api/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({"msg": "User already exists"}), 400
-
-    user = User(email=data['email'])
-    user.set_password(data['password'])
-    user.role = data.get('role', 'user')
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    return jsonify({"msg": "User created"}), 201
+    try:
+        data = request.get_json()
+        
+        # Check if required fields are present
+        if not all(key in data for key in ['email', 'password']):
+            return jsonify({
+                "success": False,
+                "message": "Missing required fields"
+            }), 400
+        
+        email = data['email'].strip()
+        password = data['password']
+        
+        # Validate email
+        email_valid, email_error = validate_email_address(email)
+        if not email_valid:
+            return jsonify({
+                "success": False,
+                "message": email_error
+            }), 400
+        
+        # Check if email already exists
+        if User.query.filter_by(email=email).first():
+            return jsonify({
+                "success": False,
+                "message": "Email address is already registered"
+            }), 400
+        
+        # Validate password
+        password_valid, password_error = validate_password(password)
+        if not password_valid:
+            return jsonify({
+                "success": False,
+                "message": password_error
+            }), 400
+        
+        # Create new user
+        user = User(email=email)
+        user.set_password(password)
+        user.role = data.get('role', 'user')
+        
+        # Save to database
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "User created successfully"
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Registration failed. Please try again."
+        }), 500
 
 # Example of a protected route
 @app.route('/api/protected', methods=['GET'])

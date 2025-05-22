@@ -4,6 +4,10 @@ import { FaEnvelope, FaLock, FaArrowLeft, FaEye, FaEyeSlash } from 'react-icons/
 import axios from 'axios';
 import './Auth.css';
 
+// Add validation rules
+const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -14,34 +18,91 @@ const Register: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
   const navigate = useNavigate();
+
+  const validateForm = () => {
+    const errors = {
+      email: '',
+      password: '',
+      confirmPassword: ''
+    };
+    let isValid = true;
+
+    // Email validation
+    if (!formData.email) {
+      errors.email = 'Email is required';
+      isValid = false;
+    } else if (!EMAIL_REGEX.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+      isValid = false;
+    }
+
+    // Password validation
+    if (!formData.password) {
+      errors.password = 'Password is required';
+      isValid = false;
+    } else if (!PASSWORD_REGEX.test(formData.password)) {
+      errors.password = 'Password must be at least 8 characters and include letters, numbers, and special characters';
+      isValid = false;
+    }
+
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+      isValid = false;
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+      isValid = false;
+    }
+
+    setValidationErrors(errors);
+    return isValid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!validateForm()) {
+        return;
+    }
+
     setIsLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await axios.post('http://localhost:5000/api/register', {
-        email: formData.email,
-        password: formData.password
-      });
+        const response = await axios.post<{ success: boolean; message?: string }>('http://localhost:5000/api/register', {
+            email: formData.email,
+            password: formData.password
+        });
 
-      if (response.data.success) {
-        navigate('/login', { state: { message: 'Registration successful! Please login.' } });
-      }
+        if (response.data.success) {
+            // Use window.location for a full page refresh
+            window.location.href = '/login?registered=true';
+        }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+        setError(err.response?.data?.message || 'Registration failed. Please try again.');
+        if (err.response?.status === 400) {
+            // Handle validation errors
+            const validationErrors = {
+                email: '',
+                password: '',
+                confirmPassword: ''
+            };
+            
+            if (err.response.data.message.includes('email')) {
+                validationErrors.email = err.response.data.message;
+            }
+            setValidationErrors(validationErrors);
+        }
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  };
+};
 
   return (
     <div className="auth-container">
@@ -61,8 +122,12 @@ const Register: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="Email address"
               required
+              maxLength={50}
             />
           </div>
+          {validationErrors.email && (
+            <div className="error-message">{validationErrors.email}</div>
+          )}
 
           <div className="input-group">
             <FaLock className="input-icon" />
@@ -72,6 +137,7 @@ const Register: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder="Password"
               required
+              maxLength={72}
             />
             <button
               type="button"
@@ -82,6 +148,9 @@ const Register: React.FC = () => {
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
+          {validationErrors.password && (
+            <div className="error-message">{validationErrors.password}</div>
+          )}
 
           <div className="input-group">
             <FaLock className="input-icon" />
@@ -101,6 +170,9 @@ const Register: React.FC = () => {
               {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
+          {validationErrors.confirmPassword && (
+            <div className="error-message">{validationErrors.confirmPassword}</div>
+          )}
 
           {error && <div className="error-message">{error}</div>}
 

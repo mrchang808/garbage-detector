@@ -70,34 +70,36 @@ export const useAuth = () => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await axios.post<LoginResponse>(ENDPOINTS.LOGIN, {
-        email,
-        password
-      });
+        const response = await axios.post<LoginResponse>(ENDPOINTS.LOGIN, {
+            email,
+            password
+        });
 
-      const { access_token, user: userData } = response.data;
-      
-      localStorage.setItem('token', access_token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      
-      navigate('/dashboard');
-      return true;
+        const { access_token, user: userData } = response.data;
+        
+        localStorage.setItem('token', access_token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        
+        // Update user state immediately
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        // Use replace to prevent going back to login
+        window.location.href = '/dashboard'; // Force page refresh
+        return true;
     } catch (error) {
-      console.error('Login failed:', error);
-      return false;
+        console.error('Login error:', error);
+        return false;
     }
-  };
+};
 
-  const logout = () => {
+const logout = () => {
     localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     setIsAuthenticated(false);
-    delete axios.defaults.headers.common['Authorization'];
-    navigate('/login');
-  };
+    window.location.href = '/login'; // Force page refresh
+};
 
   // Add authorization header to all requests
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
@@ -13,6 +13,15 @@ const Login: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [successMessage, setSuccessMessage] = useState<string>('');
+
+  useEffect(() => {
+    // Check for registration success
+    const params = new URLSearchParams(location.search);
+    if (params.get('registered')) {
+      setSuccessMessage('Registration successful! Please login.');
+    }
+  }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +46,8 @@ const Login: React.FC = () => {
     <div className="auth-container">
       <div className="auth-card">
         <h2>Welcome Back</h2>
-        {location.state?.message && (
-          <div className="success-message">{location.state.message}</div>
+        {successMessage && (
+          <div className="success-message">{successMessage}</div>
         )}
         
         <form onSubmit={handleSubmit}>
